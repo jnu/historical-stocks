@@ -11,7 +11,7 @@ import re
 import csv
 import os
 import errno
-from progressbar import Bar, ETA, Percentage, ProgressBar, Widget
+from progressbar import Bar, AdaptiveETA, Percentage, ProgressBar, Widget
 
 
 class ProgressLabel(Widget):
@@ -65,7 +65,7 @@ def run(symbol_files, output_file, error_file=stderr):
 
     maxval = len(symbols)
     plabel = ProgressLabel()
-    widgets = [Percentage(), Bar(), ' ', plabel, ' ', ETA()]
+    widgets = [Percentage(), Bar(), ' ', plabel, ' ', AdaptiveETA()]
     progress = ProgressBar(widgets=widgets, maxval=maxval).start()
 
     with open(error_file, 'w+') as feh:
