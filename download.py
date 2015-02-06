@@ -5,12 +5,14 @@ Get the stocks describe by symbols
 '''
 
 from yahoofinance.symbol import Symbol, HistoricalStockRecord
-from util import mkdir_p
 from sys import argv, stderr
 import argparse
 import re
 import csv
-from progressbar import AnimatedMarker, Bar, ETA, Percentage, ProgressBar
+import os
+import errno
+from progressbar import Bar, AdaptiveETA, Percentage, ProgressBar, SimpleProgress
+
 
 def parse_symbol_files(sym_files):
     '''
@@ -31,30 +33,42 @@ def parse_symbol_files(sym_files):
     return all_sym
 
 
-def run(symbol_files, output_file):
+def mkdir_p(path):
+    path = os.path.dirname(path)
+    try:
+        os.makedirs(path)
+    except OSError as exc: # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else: raise
+
+
+def run(symbol_files, output_file, error_file=stderr):
     symbols = parse_symbol_files(symbol_files)
 
     mkdir_p(output_file)
 
-    widgets = [Percentage(), Bar(marker=RotatingMarker()), ETA()]
+    widgets = [Percentage(), Bar(), SimpleProgress(), AdaptiveETA()]
     progress = ProgressBar(widgets=widgets, maxval=len(symbols))
+    progress.start()
 
-    with open(output_file) as fh:
-        writer = csv.writer(fh)
-        writer.writerow(HistoricalStockRecord.header())
+    with open(error_file, 'w+') as feh:
+        with open(output_file, 'w+') as fh:
+            writer = csv.writer(fh)
+            writer.writerow(HistoricalStockRecord.header())
 
-        for i, s in enumerate(symbols):
-            progress.update(i)
-            sym = Symbol(s)
+            for i, s in enumerate(symbols):
+                progress.update(i)
+                sym = Symbol(s)
 
-            try:
-                records = sym.get_historical()
-            except:
-                print >>stderr, "Failed to download:\t%s" % s
-                continue
+                try:
+                    records = sym.get_historical()
+                except:
+                    print >>feh, "Failed to download:\t%s" % s
+                    continue
 
-            for record in records:
-                writer.writerow(HistoricalStockRecord.value(record))
+                for record in records:
+                    writer.writerow(HistoricalStockRecord.value(record))
 
         progress.update(len(symbols))
         progress.finish()
@@ -62,9 +76,10 @@ def run(symbol_files, output_file):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('-o', '--out', nargs='1', help='Output file')
+    parser.add_argument('-o', '--out', nargs=1, help='Output file')
+    parser.add_argument('-e', '--error', nargs='?', help='Error file')
     parser.add_argument('symbols', nargs='+', help='Input files')
 
     args = parser.parse_args(argv[1:])
 
-    run(args.symbols, args.out)
+    run(args.symbols, args.out[0], args.error)

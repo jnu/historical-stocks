@@ -26,6 +26,7 @@ def _get_type(o):
     t = type(o)
     return o if t is type else t
 
+
 # Helper classes
 
 class Record(object):
