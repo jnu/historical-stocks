@@ -11,7 +11,22 @@ import re
 import csv
 import os
 import errno
-from progressbar import Bar, AdaptiveETA, Percentage, ProgressBar, SimpleProgress
+from progressbar import Bar, ETA, Percentage, ProgressBar, Widget
+
+
+class ProgressLabel(Widget):
+    "Simple label widget for ProgressBar"
+
+    def update_label(self, label):
+        self.label = label
+
+    def update(self, pbar):
+        if pbar.currval == 0:
+            return 'Pending'
+        elif pbar.finished:
+            return 'Finished'
+        else:
+            return '%s (%d of %d)' % (self.label, pbar.currval, pbar.maxval)
 
 
 def parse_symbol_files(sym_files):
@@ -48,9 +63,10 @@ def run(symbol_files, output_file, error_file=stderr):
 
     mkdir_p(output_file)
 
-    widgets = [Percentage(), Bar(), SimpleProgress(), AdaptiveETA()]
-    progress = ProgressBar(widgets=widgets, maxval=len(symbols))
-    progress.start()
+    maxval = len(symbols)
+    plabel = ProgressLabel()
+    widgets = [Percentage(), Bar(), ' ', plabel, ' ', ETA()]
+    progress = ProgressBar(widgets=widgets, maxval=maxval).start()
 
     with open(error_file, 'w+') as feh:
         with open(output_file, 'w+') as fh:
@@ -58,6 +74,7 @@ def run(symbol_files, output_file, error_file=stderr):
             writer.writerow(HistoricalStockRecord.header())
 
             for i, s in enumerate(symbols):
+                plabel.update_label(s)
                 progress.update(i)
                 sym = Symbol(s)
 
@@ -70,7 +87,7 @@ def run(symbol_files, output_file, error_file=stderr):
                 for record in records:
                     writer.writerow(HistoricalStockRecord.value(record))
 
-        progress.update(len(symbols))
+        progress.update(maxval)
         progress.finish()
 
 
